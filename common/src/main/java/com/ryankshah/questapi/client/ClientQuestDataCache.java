@@ -26,6 +26,7 @@ public final class ClientQuestDataCache {
     private List<Quest> quests = List.of();
     private PlayerQuestData progress;
     private int revision = 0;
+    private Identifier trackedQuestId;
 
     private ClientQuestDataCache() {
     }
@@ -90,5 +91,20 @@ public final class ClientQuestDataCache {
 
     public boolean hasData() {
         return progress != null;
+    }
+
+    /**
+     * The quest currently pinned to the in-game HUD tracker, or {@code null} if none is pinned.
+     * Purely a client-side display preference - never synced to the server or other clients.
+     */
+    public Identifier trackedQuestId() {
+        return trackedQuestId;
+    }
+
+    /**
+     * Pins {@code questId} to the HUD tracker, or unpins it if it's already the tracked quest.
+     */
+    public void toggleTracked(Identifier questId) {
+        this.trackedQuestId = questId.equals(trackedQuestId) ? null : questId;
     }
 }

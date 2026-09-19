@@ -53,13 +53,7 @@ public final class QuestCodecs {
     }
 
     public static Codec<QuestCondition> conditionCodec(QuestRegistry registry) {
-        return Identifier.CODEC.dispatch("type", QuestCondition::typeId, id -> lookupCondition(registry, id));
-    }
-
-    private static MapCodec<? extends QuestCondition> lookupCondition(QuestRegistry registry, Identifier id) {
-        var type = registry.getConditionType(id)
-                .orElseThrow(() -> new IllegalArgumentException("Unknown condition type: " + id));
-        return type.codec();
+        return registry.conditionCodec();
     }
 
     public static Codec<Quest> questCodec(QuestRegistry registry) {

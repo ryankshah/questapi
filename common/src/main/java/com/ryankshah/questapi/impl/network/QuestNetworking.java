@@ -3,6 +3,7 @@ package com.ryankshah.questapi.impl.network;
 import com.ryankshah.questapi.QuestApi;
 import com.ryankshah.questapi.api.quest.Quest;
 import com.ryankshah.questapi.impl.network.payload.ClientboundQuestCompletedPayload;
+import com.ryankshah.questapi.impl.network.payload.ClientboundQuestUnlockedPayload;
 import com.ryankshah.questapi.impl.network.payload.ClientboundSyncDefinitionsPayload;
 import com.ryankshah.questapi.impl.network.payload.ClientboundSyncProgressPayload;
 import com.ryankshah.questapi.platform.Services;
@@ -37,6 +38,10 @@ public final class QuestNetworking {
 
     public static void sendQuestCompleted(ServerPlayer player, Quest quest) {
         Services.NETWORK.sendToPlayer(player, new ClientboundQuestCompletedPayload(quest.title()));
+    }
+
+    public static void sendQuestUnlocked(ServerPlayer player, Quest quest) {
+        Services.NETWORK.sendToPlayer(player, new ClientboundQuestUnlockedPayload(quest.title()));
     }
 
     public static void onPlayerJoined(ServerPlayer player) {

@@ -235,6 +235,9 @@ Built-in reward types, under `com.ryankshah.questapi.api.quest.reward.impl`:
 * `ItemReward` - places an item stack in the player's inventory (drops it if full).
 * `ExperienceReward` - grants experience points.
 * `CommandReward` - runs a command as the player, with elevated permission and suppressed output.
+* `AdvancementReward` - grants a vanilla or datapack advancement, by awarding every one of its
+  criteria (a single criterion isn't enough to complete an advancement with several).
+* `EffectReward` - applies a potion/mob effect for a given duration and amplifier.
 
 Rewards are granted exactly once per quest, guarded by the `REWARDED` state - `QuestManager.claimRewards`
 returns `false` (and grants nothing) if the quest isn't `COMPLETED` or was already claimed, so a
@@ -252,8 +255,25 @@ registry.registerQuest(Quest.builder(SECOND_QUEST)
 
 Built-in conditions: `QuestCompletedCondition` (chain quests together), `AdvancementCondition`
 (require a vanilla or datapack advancement), `ItemPossessionCondition` (require holding an item),
-`ExperienceLevelCondition` (require a minimum XP level).
-A quest needs *all* of its conditions to pass to leave `LOCKED`.
+`ExperienceLevelCondition` (require a minimum XP level), `TimeOfDayCondition` (require day or night),
+`WeatherCondition` (require clear/rain/thunder), `BiomeCondition` (require standing in a specific
+biome).
+A quest needs *all* of its conditions to pass to leave `LOCKED` - unless one of them is an
+`AnyOfCondition`, which itself passes if *any* of the conditions it wraps pass:
+
+```java
+registry.registerQuest(Quest.builder(EITHER_QUEST)
+        .requires(new AnyOfCondition(List.of(
+                new AdvancementCondition(someAdvancementId),
+                new ItemPossessionCondition(Items.DIAMOND_PICKAXE, 1))))
+        .build());
+```
+
+`AnyOfCondition` is the one built-in condition that isn't a plain `TYPE` constant, since it wraps
+other conditions and needs the registry's own dispatch codec to (de)serialize them - register it via
+`registry.registerConditionType(AnyOfCondition.type(registry))` (already done for you by this
+module's own `BuiltinContent`; only relevant if you're writing your own composite condition type
+following the same shape).
 
 ## Repeatable quests
 
@@ -432,11 +452,14 @@ Registered only when `dev=true`, under `com.ryankshah.questapi.example.ExampleQu
 * **Farm & Sea**: *Gone Fishing* (fish objective, repeatable on the server's default schedule) and
   *Animal Husbandry* (breed-animals objective, repeatable every in-game day - a per-quest
   `ResetMode` override).
+* **World Events**: *Thunderstruck* (only available during a thunderstorm - `WeatherCondition` and
+  `EffectReward`) and *Night Owl* (available at night or in a dark forest - `AnyOfCondition`'s OR
+  logic and `AdvancementReward`).
 * **JSON Demo**: *A Quest From JSON* - identical in every respect to the quests above, but defined
   entirely in [a datapack JSON file](#datapack-quests) instead of Java code.
 
 Between them the tree exercises every built-in objective type except delivery, every built-in reward
-type, both repeatable `ResetMode`s, a three-quest prerequisite chain, a locked quest, a
+and condition type, both repeatable `ResetMode`s, a three-quest prerequisite chain, a locked quest, a
 multi-objective quest, and a quest with multiple rewards - use `/quests progress` and `/quests unlock`
 to jump around the tree and see every GUI state (locked, available, active, completed, rewarded)
 without playing through it.

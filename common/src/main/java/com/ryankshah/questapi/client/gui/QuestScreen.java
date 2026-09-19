@@ -56,6 +56,7 @@ public final class QuestScreen extends Screen {
     private CategoryListWidget categoryList;
     private QuestListWidget questList;
     private Button actionButton;
+    private Button trackButton;
     private final List<DeliverButtonBounds> deliverButtons = new ArrayList<>();
     private int lastMouseX;
     private int lastMouseY;
@@ -81,7 +82,7 @@ public final class QuestScreen extends Screen {
 
         int categoryX = leftPos + MARGIN;
         categoryList = new CategoryListWidget(minecraft, categoryX, columnY, CATEGORY_WIDTH, columnHeight, this::selectCategory);
-        categoryList.setCategories(cache.categories());
+        categoryList.setCategories(cache.categories(), cache);
         addRenderableWidget(categoryList);
 
         int listX = categoryX + CATEGORY_WIDTH + GAP;
@@ -123,6 +124,10 @@ public final class QuestScreen extends Screen {
             removeWidget(actionButton);
             actionButton = null;
         }
+        if (trackButton != null) {
+            removeWidget(trackButton);
+            trackButton = null;
+        }
         if (selectedQuest == null) {
             return;
         }
@@ -133,9 +138,18 @@ public final class QuestScreen extends Screen {
             case AVAILABLE -> actionButton = Button.builder(Component.translatable("questapi.gui.action.start"),
                             b -> ClientQuestNetworking.requestStartQuest(selectedQuest.id()))
                     .bounds(detailX, buttonY, detailWidth, 20).build();
-            case ACTIVE -> actionButton = Button.builder(Component.translatable("questapi.gui.action.abandon"),
-                            b -> confirmAbandon(selectedQuest.id()))
-                    .bounds(detailX, buttonY, detailWidth, 20).build();
+            case ACTIVE -> {
+                actionButton = Button.builder(Component.translatable("questapi.gui.action.abandon"),
+                                b -> confirmAbandon(selectedQuest.id()))
+                        .bounds(detailX, buttonY, detailWidth, 20).build();
+                boolean tracked = selectedQuest.id().equals(cache.trackedQuestId());
+                Component trackLabel = Component.translatable(tracked ? "questapi.gui.action.untrack" : "questapi.gui.action.track");
+                trackButton = Button.builder(trackLabel, b -> {
+                            cache.toggleTracked(selectedQuest.id());
+                            refreshActionButton();
+                        })
+                        .bounds(detailX, buttonY - 22, detailWidth, 20).build();
+            }
             case COMPLETED -> actionButton = Button.builder(Component.translatable("questapi.gui.action.claim"),
                             b -> ClientQuestNetworking.requestClaimReward(selectedQuest.id()))
                     .bounds(detailX, buttonY, detailWidth, 20).build();
@@ -144,6 +158,9 @@ public final class QuestScreen extends Screen {
         }
         if (actionButton != null) {
             addRenderableWidget(actionButton);
+        }
+        if (trackButton != null) {
+            addRenderableWidget(trackButton);
         }
     }
 
@@ -163,6 +180,7 @@ public final class QuestScreen extends Screen {
     public void tick() {
         if (cache.revision() != lastSeenRevision) {
             lastSeenRevision = cache.revision();
+            categoryList.setCategories(cache.categories(), cache);
             refreshQuestList();
             refreshActionButton();
         }

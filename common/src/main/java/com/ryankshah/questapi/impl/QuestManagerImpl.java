@@ -109,6 +109,9 @@ public final class QuestManagerImpl implements QuestManager {
                 data.getOrCreate(quest.id()).setState(QuestState.AVAILABLE);
             }
             changed = true;
+            for (QuestEventListener listener : QuestEvents.listeners()) {
+                listener.onQuestUnlocked(player, quest);
+            }
         }
         if (changed) {
             markDirty();
@@ -248,6 +251,10 @@ public final class QuestManagerImpl implements QuestManager {
 
     @Override
     public void tickObjectives(ServerPlayer player) {
+        // World-state conditions (time of day, weather, biome) can flip from false to true without
+        // any discrete quest event to hang a recheck off of, unlike every other built-in condition -
+        // so availability needs to be polled here too, not just at login/claim/reset/abandon.
+        refreshAvailability(player);
         checkRepeatableResets(player);
         applyEvent(player, ObjectiveEventKeys.TICK, 0);
     }

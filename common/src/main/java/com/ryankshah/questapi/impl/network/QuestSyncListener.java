@@ -18,6 +18,11 @@ public final class QuestSyncListener implements QuestEventListener {
     }
 
     @Override
+    public void onQuestUnlocked(ServerPlayer player, Quest quest) {
+        QuestNetworking.sendQuestUnlocked(player, quest);
+    }
+
+    @Override
     public void onObjectiveProgressChanged(ServerPlayer player, Quest quest, int objectiveIndex, ObjectiveProgress progress) {
         QuestNetworking.sendProgress(player);
     }

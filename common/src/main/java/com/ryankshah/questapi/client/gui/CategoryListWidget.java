@@ -1,6 +1,8 @@
 package com.ryankshah.questapi.client.gui;
 
 import com.ryankshah.questapi.api.quest.QuestCategory;
+import com.ryankshah.questapi.api.quest.QuestState;
+import com.ryankshah.questapi.client.ClientQuestDataCache;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.GuiGraphicsExtractor;
 import net.minecraft.client.gui.components.ObjectSelectionList;
@@ -37,10 +39,12 @@ public final class CategoryListWidget extends ObjectSelectionList<CategoryListEn
     protected void extractListSeparators(GuiGraphicsExtractor graphics) {
     }
 
-    public void setCategories(List<QuestCategory> categories) {
+    public void setCategories(List<QuestCategory> categories, ClientQuestDataCache cache) {
         clearEntries();
         for (QuestCategory category : categories) {
-            addEntry(new CategoryListEntry(category));
+            boolean needsAttention = cache.questsInCategory(category.id()).stream()
+                    .anyMatch(quest -> cache.getState(quest.id()) == QuestState.COMPLETED);
+            addEntry(new CategoryListEntry(category, needsAttention));
         }
     }
 
