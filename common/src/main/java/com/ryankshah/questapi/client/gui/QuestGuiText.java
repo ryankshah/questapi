@@ -1,5 +1,6 @@
 package com.ryankshah.questapi.client.gui;
 
+import com.ryankshah.questapi.api.quest.Quest;
 import com.ryankshah.questapi.api.quest.QuestState;
 import net.minecraft.network.chat.Component;
 
@@ -12,13 +13,15 @@ public final class QuestGuiText {
     private QuestGuiText() {
     }
 
-    public static Component stateLabel(QuestState state) {
+    public static Component stateLabel(Quest quest, QuestState state) {
         return switch (state) {
             case LOCKED -> Component.translatable("questapi.gui.state.locked");
             case AVAILABLE -> Component.translatable("questapi.gui.state.available");
             case ACTIVE -> Component.translatable("questapi.gui.state.active");
             case COMPLETED -> Component.translatable("questapi.gui.state.completed");
-            case REWARDED -> Component.translatable("questapi.gui.state.rewarded");
+            case REWARDED -> quest.repeatable()
+                    ? Component.translatable("questapi.gui.state.rewarded.repeatable")
+                    : Component.translatable("questapi.gui.state.rewarded");
             case ABANDONED -> Component.translatable("questapi.gui.state.abandoned");
         };
     }

@@ -22,6 +22,14 @@ public interface QuestEventListener {
     default void onQuestStarted(ServerPlayer player, Quest quest) {
     }
 
+    /**
+     * Fired once when a quest becomes visible to a player for the first time - either newly
+     * {@code AVAILABLE}, or jumping straight to {@code ACTIVE} for an {@code autoActivate} quest.
+     * Not fired for a quest that was already {@code AVAILABLE}/{@code ACTIVE} from a previous session.
+     */
+    default void onQuestUnlocked(ServerPlayer player, Quest quest) {
+    }
+
     default void onObjectiveProgressChanged(ServerPlayer player, Quest quest, int objectiveIndex, ObjectiveProgress progress) {
     }
 

@@ -77,7 +77,12 @@ publishing {
     }
     repositories {
         maven {
-            url System.getenv('local_maven_url')
+            name = 'GitHubPackages'
+            url = uri('https://maven.pkg.github.com/ryankshah/questapi')
+            credentials {
+                username = System.getenv('GITHUB_ACTOR') ?: findProperty('gpr.user')
+                password = System.getenv('GITHUB_TOKEN') ?: findProperty('gpr.token')
+            }
         }
     }
 }

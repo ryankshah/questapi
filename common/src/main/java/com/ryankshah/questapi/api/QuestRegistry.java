@@ -1,5 +1,6 @@
 package com.ryankshah.questapi.api;
 
+import com.mojang.serialization.Codec;
 import com.ryankshah.questapi.api.quest.Quest;
 import com.ryankshah.questapi.api.quest.QuestCategory;
 import com.ryankshah.questapi.api.quest.condition.ConditionType;
@@ -62,6 +63,20 @@ public interface QuestRegistry {
     <C extends QuestCondition> void registerConditionType(ConditionType<C> type);
 
     Optional<ConditionType<?>> getConditionType(Identifier id);
+
+    /**
+     * A {@link Codec} that dispatches on a condition's registered type, resolving nested
+     * conditions by type ID exactly like {@code Quest}'s own prerequisite list does. Exists for
+     * composite condition types (e.g. an "any of" wrapper holding other conditions) that need to
+     * (de)serialize a nested {@link QuestCondition} without depending on this module's network code.
+     * Resolution is lazy - safe to call while building a composite type's own codec, even before
+     * every condition type (including that composite type itself) has finished registering.
+     */
+    default Codec<QuestCondition> conditionCodec() {
+        return Identifier.CODEC.dispatch("type", QuestCondition::typeId, id -> getConditionType(id)
+                .map(ConditionType::codec)
+                .orElseThrow(() -> new IllegalArgumentException("Unknown condition type: " + id)));
+    }
 
     /**
      * Removes every registered quest and category. Intended for dev-mode quest reloading; not

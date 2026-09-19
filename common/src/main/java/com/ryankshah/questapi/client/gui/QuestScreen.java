@@ -14,6 +14,7 @@ import com.ryankshah.questapi.client.network.ClientQuestNetworking;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.GuiGraphicsExtractor;
 import net.minecraft.client.gui.components.Button;
+import net.minecraft.client.gui.screens.ConfirmScreen;
 import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.network.chat.Component;
 import net.minecraft.network.chat.FormattedText;
@@ -38,6 +39,7 @@ public final class QuestScreen extends Screen {
     private static final int MARGIN = 6;
     private static final int GAP = 8;
     private static final int LINE_HEIGHT = 10;
+    private static final int PROGRESS_BAR_HEIGHT = 3;
 
     private final ClientQuestDataCache cache = ClientQuestDataCache.INSTANCE;
     private int leftPos;
@@ -54,6 +56,7 @@ public final class QuestScreen extends Screen {
     private CategoryListWidget categoryList;
     private QuestListWidget questList;
     private Button actionButton;
+    private Button trackButton;
     private final List<DeliverButtonBounds> deliverButtons = new ArrayList<>();
     private int lastMouseX;
     private int lastMouseY;
@@ -79,7 +82,7 @@ public final class QuestScreen extends Screen {
 
         int categoryX = leftPos + MARGIN;
         categoryList = new CategoryListWidget(minecraft, categoryX, columnY, CATEGORY_WIDTH, columnHeight, this::selectCategory);
-        categoryList.setCategories(cache.categories());
+        categoryList.setCategories(cache.categories(), cache);
         addRenderableWidget(categoryList);
 
         int listX = categoryX + CATEGORY_WIDTH + GAP;
@@ -121,6 +124,10 @@ public final class QuestScreen extends Screen {
             removeWidget(actionButton);
             actionButton = null;
         }
+        if (trackButton != null) {
+            removeWidget(trackButton);
+            trackButton = null;
+        }
         if (selectedQuest == null) {
             return;
         }
@@ -131,9 +138,18 @@ public final class QuestScreen extends Screen {
             case AVAILABLE -> actionButton = Button.builder(Component.translatable("questapi.gui.action.start"),
                             b -> ClientQuestNetworking.requestStartQuest(selectedQuest.id()))
                     .bounds(detailX, buttonY, detailWidth, 20).build();
-            case ACTIVE -> actionButton = Button.builder(Component.translatable("questapi.gui.action.abandon"),
-                            b -> ClientQuestNetworking.requestAbandonQuest(selectedQuest.id()))
-                    .bounds(detailX, buttonY, detailWidth, 20).build();
+            case ACTIVE -> {
+                actionButton = Button.builder(Component.translatable("questapi.gui.action.abandon"),
+                                b -> confirmAbandon(selectedQuest.id()))
+                        .bounds(detailX, buttonY, detailWidth, 20).build();
+                boolean tracked = selectedQuest.id().equals(cache.trackedQuestId());
+                Component trackLabel = Component.translatable(tracked ? "questapi.gui.action.untrack" : "questapi.gui.action.track");
+                trackButton = Button.builder(trackLabel, b -> {
+                            cache.toggleTracked(selectedQuest.id());
+                            refreshActionButton();
+                        })
+                        .bounds(detailX, buttonY - 22, detailWidth, 20).build();
+            }
             case COMPLETED -> actionButton = Button.builder(Component.translatable("questapi.gui.action.claim"),
                             b -> ClientQuestNetworking.requestClaimReward(selectedQuest.id()))
                     .bounds(detailX, buttonY, detailWidth, 20).build();
@@ -143,12 +159,28 @@ public final class QuestScreen extends Screen {
         if (actionButton != null) {
             addRenderableWidget(actionButton);
         }
+        if (trackButton != null) {
+            addRenderableWidget(trackButton);
+        }
+    }
+
+    private void confirmAbandon(Identifier questId) {
+        minecraft.gui.setScreen(new ConfirmScreen(
+                confirmed -> {
+                    if (confirmed) {
+                        ClientQuestNetworking.requestAbandonQuest(questId);
+                    }
+                    minecraft.gui.setScreen(this);
+                },
+                Component.translatable("questapi.gui.abandon.confirm.title"),
+                Component.translatable("questapi.gui.abandon.confirm.message")));
     }
 
     @Override
     public void tick() {
         if (cache.revision() != lastSeenRevision) {
             lastSeenRevision = cache.revision();
+            categoryList.setCategories(cache.categories(), cache);
             refreshQuestList();
             refreshActionButton();
         }
@@ -202,7 +234,7 @@ public final class QuestScreen extends Screen {
         int titleTextWidth = width - 22;
         int cursorY = drawWrapped(graphics, quest.title(), x + 22, y + 1, titleTextWidth, 0xFFFFFF55);
         cursorY = Math.max(cursorY, y + 12);
-        cursorY = drawWrapped(graphics, QuestGuiText.stateLabel(state), x + 22, cursorY, titleTextWidth, QuestGuiText.stateColor(state));
+        cursorY = drawWrapped(graphics, QuestGuiText.stateLabel(quest, state), x + 22, cursorY, titleTextWidth, QuestGuiText.stateColor(state));
         cursorY += 2;
 
         cursorY = drawWrapped(graphics, quest.description(), x, cursorY, width, 0xFFCCCCCC);
@@ -235,6 +267,16 @@ public final class QuestScreen extends Screen {
             Component objectiveLine = objective.describe().copy().append(Component.literal(amountText));
             int lineStartY = cursorY;
             cursorY = drawWrapped(graphics, objectiveLine, x, cursorY, lineWidth, color);
+
+            int target = objective.targetAmount();
+            float ratio = target > 0 ? Math.min(1f, (float) op.current() / target) : 0f;
+            int filledWidth = Math.round(width * ratio);
+            int barColor = op.complete() ? 0xFF55FF55 : 0xFF55FFFF;
+            graphics.fill(x, cursorY, x + width, cursorY + PROGRESS_BAR_HEIGHT, 0x60000000);
+            if (filledWidth > 0) {
+                graphics.fill(x, cursorY, x + filledWidth, cursorY + PROGRESS_BAR_HEIGHT, barColor);
+            }
+            cursorY += PROGRESS_BAR_HEIGHT + 2;
 
             if (deliverable) {
                 int bx = x + width - deliverButtonWidth;

@@ -10,7 +10,12 @@ import com.ryankshah.questapi.impl.network.payload.ServerboundDeliverItemsPayloa
 import com.ryankshah.questapi.impl.network.payload.ServerboundRequestSyncPayload;
 import com.ryankshah.questapi.impl.network.payload.ServerboundStartQuestPayload;
 import com.ryankshah.questapi.platform.Services;
+import net.minecraft.client.Minecraft;
+import net.minecraft.client.gui.components.toasts.SystemToast;
+import net.minecraft.client.resources.sounds.SimpleSoundInstance;
+import net.minecraft.network.chat.Component;
 import net.minecraft.resources.Identifier;
+import net.minecraft.sounds.SoundEvents;
 
 import java.util.List;
 
@@ -29,6 +34,20 @@ public final class ClientQuestNetworking {
 
     public static void handleSyncProgress(PlayerQuestData data) {
         ClientQuestDataCache.INSTANCE.setProgress(data);
+    }
+
+    public static void handleQuestCompleted(Component questTitle) {
+        Minecraft minecraft = Minecraft.getInstance();
+        minecraft.getSoundManager().play(SimpleSoundInstance.forUI(SoundEvents.PLAYER_LEVELUP, 1.0F));
+        SystemToast.add(minecraft.gui.toastManager(), SystemToast.SystemToastId.PERIODIC_NOTIFICATION,
+                Component.translatable("questapi.toast.quest_completed.title"), questTitle);
+    }
+
+    public static void handleQuestUnlocked(Component questTitle) {
+        Minecraft minecraft = Minecraft.getInstance();
+        minecraft.getSoundManager().play(SimpleSoundInstance.forUI(SoundEvents.EXPERIENCE_ORB_PICKUP, 1.0F));
+        SystemToast.add(minecraft.gui.toastManager(), SystemToast.SystemToastId.PERIODIC_NOTIFICATION,
+                Component.translatable("questapi.toast.quest_unlocked.title"), questTitle);
     }
 
     public static void requestSync() {

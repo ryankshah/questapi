@@ -22,7 +22,8 @@ public final class QuestProgress {
                     .fieldOf("objectives").forGetter(QuestProgress::objectivesRaw),
             Codec.LONG.fieldOf("startedAt").forGetter(QuestProgress::startedAt),
             Codec.LONG.fieldOf("completedAt").forGetter(QuestProgress::completedAt),
-            Codec.LONG.fieldOf("rewardedAt").forGetter(QuestProgress::rewardedAt)
+            Codec.LONG.fieldOf("rewardedAt").forGetter(QuestProgress::rewardedAt),
+            Codec.LONG.optionalFieldOf("rewardedAtDay", 0L).forGetter(QuestProgress::rewardedAtDay)
     ).apply(instance, QuestProgress::new));
 
     private QuestState state;
@@ -30,17 +31,19 @@ public final class QuestProgress {
     private long startedAt;
     private long completedAt;
     private long rewardedAt;
+    private long rewardedAtDay;
 
-    public QuestProgress(QuestState state, Map<Integer, ObjectiveProgress> objectives, long startedAt, long completedAt, long rewardedAt) {
+    public QuestProgress(QuestState state, Map<Integer, ObjectiveProgress> objectives, long startedAt, long completedAt, long rewardedAt, long rewardedAtDay) {
         this.state = state;
         this.objectives = new HashMap<>(objectives);
         this.startedAt = startedAt;
         this.completedAt = completedAt;
         this.rewardedAt = rewardedAt;
+        this.rewardedAtDay = rewardedAtDay;
     }
 
     public static QuestProgress locked() {
-        return new QuestProgress(QuestState.LOCKED, Map.of(), 0, 0, 0);
+        return new QuestProgress(QuestState.LOCKED, Map.of(), 0, 0, 0, 0);
     }
 
     public QuestState state() {
@@ -87,6 +90,19 @@ public final class QuestProgress {
         this.rewardedAt = rewardedAt;
     }
 
+    /**
+     * The world's in-game day count (see {@code QuestManagerImpl#currentGameDay}) at the moment this
+     * quest was last rewarded. Only meaningful for repeatable quests resolved to
+     * {@link ResetMode#IN_GAME_DAY}.
+     */
+    public long rewardedAtDay() {
+        return rewardedAtDay;
+    }
+
+    public void setRewardedAtDay(long rewardedAtDay) {
+        this.rewardedAtDay = rewardedAtDay;
+    }
+
     public boolean rewardClaimed() {
         return state == QuestState.REWARDED;
     }
@@ -101,6 +117,6 @@ public final class QuestProgress {
         for (Map.Entry<Integer, ObjectiveProgress> entry : objectives.entrySet()) {
             copiedObjectives.put(entry.getKey(), entry.getValue().copy());
         }
-        return new QuestProgress(state, copiedObjectives, startedAt, completedAt, rewardedAt);
+        return new QuestProgress(state, copiedObjectives, startedAt, completedAt, rewardedAt, rewardedAtDay);
     }
 }

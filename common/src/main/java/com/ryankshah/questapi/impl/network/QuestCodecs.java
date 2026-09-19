@@ -5,6 +5,7 @@ import com.mojang.serialization.MapCodec;
 import com.mojang.serialization.codecs.RecordCodecBuilder;
 import com.ryankshah.questapi.api.QuestRegistry;
 import com.ryankshah.questapi.api.quest.Quest;
+import com.ryankshah.questapi.api.quest.ResetMode;
 import com.ryankshah.questapi.api.quest.condition.QuestCondition;
 import com.ryankshah.questapi.api.quest.objective.ObjectiveDefinition;
 import com.ryankshah.questapi.api.quest.objective.ObjectiveType;
@@ -13,6 +14,8 @@ import com.ryankshah.questapi.api.quest.reward.RewardType;
 import net.minecraft.network.chat.ComponentSerialization;
 import net.minecraft.resources.Identifier;
 import net.minecraft.world.item.ItemStack;
+
+import java.util.Optional;
 
 /**
  * Builds registry-backed dispatch {@link Codec}s for the extensible objective/reward/condition
@@ -50,13 +53,7 @@ public final class QuestCodecs {
     }
 
     public static Codec<QuestCondition> conditionCodec(QuestRegistry registry) {
-        return Identifier.CODEC.dispatch("type", QuestCondition::typeId, id -> lookupCondition(registry, id));
-    }
-
-    private static MapCodec<? extends QuestCondition> lookupCondition(QuestRegistry registry, Identifier id) {
-        var type = registry.getConditionType(id)
-                .orElseThrow(() -> new IllegalArgumentException("Unknown condition type: " + id));
-        return type.codec();
+        return registry.conditionCodec();
     }
 
     public static Codec<Quest> questCodec(QuestRegistry registry) {
@@ -70,18 +67,26 @@ public final class QuestCodecs {
                 rewardCodec(registry).listOf().fieldOf("rewards").forGetter(Quest::rewards),
                 conditionCodec(registry).listOf().fieldOf("prerequisites").forGetter(Quest::prerequisites),
                 Codec.BOOL.fieldOf("auto_activate").forGetter(Quest::autoActivate),
-                Codec.INT.fieldOf("sort_order").forGetter(Quest::sortOrder)
-        ).apply(instance, (id, title, description, icon, category, objectives, rewards, prerequisites, autoActivate, sortOrder) ->
-                Quest.builder(id)
-                        .title(title)
-                        .description(description)
-                        .icon(icon)
-                        .category(category)
-                        .objectives(objectives)
-                        .rewards(rewards)
-                        .requires(prerequisites)
-                        .autoActivate(autoActivate)
-                        .sortOrder(sortOrder)
-                        .build()));
+                Codec.INT.fieldOf("sort_order").forGetter(Quest::sortOrder),
+                Codec.BOOL.optionalFieldOf("repeatable", false).forGetter(Quest::repeatable),
+                Codec.STRING.xmap(ResetMode::valueOf, Enum::name).optionalFieldOf("reset_mode")
+                        .forGetter(q -> Optional.ofNullable(q.resetMode())),
+                Codec.INT.optionalFieldOf("reset_amount", 0).forGetter(Quest::resetAmount)
+        ).apply(instance, (id, title, description, icon, category, objectives, rewards, prerequisites, autoActivate, sortOrder, repeatable, resetMode, resetAmount) -> {
+            Quest.Builder builder = Quest.builder(id)
+                    .title(title)
+                    .description(description)
+                    .icon(icon)
+                    .category(category)
+                    .objectives(objectives)
+                    .rewards(rewards)
+                    .requires(prerequisites)
+                    .autoActivate(autoActivate)
+                    .sortOrder(sortOrder);
+            if (repeatable) {
+                builder.repeatable(resetMode.orElse(null), resetAmount);
+            }
+            return builder.build();
+        }));
     }
 }

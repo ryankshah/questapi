@@ -19,22 +19,45 @@ decides quest state on its own.
 
 ## Table of contents
 
-1. [Architecture](#architecture)
-2. [Quest lifecycle](#quest-lifecycle)
-3. [Registering a quest](#registering-a-quest)
-4. [Datapack quests](#datapack-quests)
-5. [Objectives](#objectives)
-6. [Rewards](#rewards)
-7. [Prerequisites / conditions](#prerequisites--conditions)
-8. [Custom objectives](#custom-objectives)
-9. [Custom rewards and conditions](#custom-rewards-and-conditions)
-10. [Listening for quest events](#listening-for-quest-events)
-11. [Opening the default GUI](#opening-the-default-gui)
-12. [Server/client responsibilities](#serverclient-responsibilities)
-13. [Persistence and networking](#persistence-and-networking)
-14. [Mixins](#mixins)
-15. [Development mode](#development-mode)
-16. [Example quests](#example-quests)
+1. [Installing](#installing)
+2. [Architecture](#architecture)
+3. [Quest lifecycle](#quest-lifecycle)
+4. [Registering a quest](#registering-a-quest)
+5. [Datapack quests](#datapack-quests)
+6. [Objectives](#objectives)
+7. [Rewards](#rewards)
+8. [Prerequisites / conditions](#prerequisites--conditions)
+9. [Repeatable quests](#repeatable-quests)
+10. [Custom objectives](#custom-objectives)
+11. [Custom rewards and conditions](#custom-rewards-and-conditions)
+12. [Listening for quest events](#listening-for-quest-events)
+13. [Opening the default GUI](#opening-the-default-gui)
+14. [Server/client responsibilities](#serverclient-responsibilities)
+15. [Persistence and networking](#persistence-and-networking)
+16. [Mixins](#mixins)
+17. [Development mode](#development-mode)
+18. [Example quests](#example-quests)
+
+## Installing
+
+Published to GitHub Packages, which requires authenticating even to read a public package (a GitHub
+Packages limitation, not ours) - use a personal access token with `read:packages` scope:
+
+```groovy
+repositories {
+    maven {
+        url = uri('https://maven.pkg.github.com/ryankshah/questapi')
+        credentials {
+            username = project.findProperty('gpr.user')
+            password = project.findProperty('gpr.token')
+        }
+    }
+}
+
+dependencies {
+    implementation 'com.ryankshah.questapi:common:26.3.0.0'
+}
+```
 
 ## Architecture
 
@@ -48,6 +71,7 @@ com.ryankshah.questapi
  │       ├─ Quest            - immutable quest definition
  │       ├─ QuestCategory    - GUI grouping
  │       ├─ QuestState       - LOCKED / AVAILABLE / ACTIVE / COMPLETED / REWARDED / ABANDONED
+ │       ├─ ResetMode        - WALL_CLOCK / IN_GAME_DAY, for repeatable quests
  │       ├─ QuestProgress    - mutable per-player runtime state for one quest
  │       ├─ PlayerQuestData  - a player's QuestProgress map
  │       ├─ QuestContext     - passed to objectives/rewards/conditions when evaluated
@@ -78,13 +102,16 @@ LOCKED --------> AVAILABLE --------> ACTIVE --------> COMPLETED --------> REWARD
   |  not met yet       |  (or autoActivate) |  reach target        |
   |                    |                    |                      |
   +--------------------+---- resetQuest() / abandonQuest() --------+
+                       ^                                           |
+                       +---- repeatable quest, cooldown elapsed ---+
 ```
 
 * **LOCKED** - one or more prerequisites aren't satisfied yet.
 * **AVAILABLE** - prerequisites pass, but the player hasn't started the quest.
 * **ACTIVE** - started; objective progress is being tracked.
 * **COMPLETED** - every objective hit its target; rewards not yet claimed.
-* **REWARDED** - rewards claimed. Terminal, unless explicitly reset.
+* **REWARDED** - rewards claimed. Terminal, unless explicitly reset - or, for a
+  [repeatable quest](#repeatable-quests), until its cooldown elapses.
 * **ABANDONED** - the player cancelled an active quest.
 
 A quest whose progress has never been touched by a player has *no stored entry at all* - the state
@@ -193,6 +220,8 @@ Built-in objective types, all under `com.ryankshah.questapi.api.quest.objective.
 | `TameEntityObjective`     | Animals tamed since the quest started (via a common mixin)     | push  |
 | `VisitDimensionObjective` | Player is currently in a specific dimension                    | poll  |
 | `VisitLocationObjective`  | Player is within a radius of a position in a specific dimension| poll  |
+| `FishObjective`           | `Stats.FISH_CAUGHT` delta since the quest started              | poll  |
+| `BreedAnimalsObjective`   | `Stats.ANIMALS_BRED` delta since the quest started             | poll  |
 
 "Poll" objectives recompute their absolute progress from live game state roughly once per second
 while the quest is active. "Push" objectives only change in response to a specific event key and
@@ -206,6 +235,9 @@ Built-in reward types, under `com.ryankshah.questapi.api.quest.reward.impl`:
 * `ItemReward` - places an item stack in the player's inventory (drops it if full).
 * `ExperienceReward` - grants experience points.
 * `CommandReward` - runs a command as the player, with elevated permission and suppressed output.
+* `AdvancementReward` - grants a vanilla or datapack advancement, by awarding every one of its
+  criteria (a single criterion isn't enough to complete an advancement with several).
+* `EffectReward` - applies a potion/mob effect for a given duration and amplifier.
 
 Rewards are granted exactly once per quest, guarded by the `REWARDED` state - `QuestManager.claimRewards`
 returns `false` (and grants nothing) if the quest isn't `COMPLETED` or was already claimed, so a
@@ -223,8 +255,53 @@ registry.registerQuest(Quest.builder(SECOND_QUEST)
 
 Built-in conditions: `QuestCompletedCondition` (chain quests together), `AdvancementCondition`
 (require a vanilla or datapack advancement), `ItemPossessionCondition` (require holding an item),
-`ExperienceLevelCondition` (require a minimum XP level).
-A quest needs *all* of its conditions to pass to leave `LOCKED`.
+`ExperienceLevelCondition` (require a minimum XP level), `TimeOfDayCondition` (require day or night),
+`WeatherCondition` (require clear/rain/thunder), `BiomeCondition` (require standing in a specific
+biome).
+A quest needs *all* of its conditions to pass to leave `LOCKED` - unless one of them is an
+`AnyOfCondition`, which itself passes if *any* of the conditions it wraps pass:
+
+```java
+registry.registerQuest(Quest.builder(EITHER_QUEST)
+        .requires(new AnyOfCondition(List.of(
+                new AdvancementCondition(someAdvancementId),
+                new ItemPossessionCondition(Items.DIAMOND_PICKAXE, 1))))
+        .build());
+```
+
+`AnyOfCondition` is the one built-in condition that isn't a plain `TYPE` constant, since it wraps
+other conditions and needs the registry's own dispatch codec to (de)serialize them - register it via
+`registry.registerConditionType(AnyOfCondition.type(registry))` (already done for you by this
+module's own `BuiltinContent`; only relevant if you're writing your own composite condition type
+following the same shape).
+
+## Repeatable quests
+
+```java
+registry.registerQuest(Quest.builder(DAILY_QUEST)
+        // ... title/description/icon/category/objective/reward as usual
+        .repeatable(24)                             // uses the server's default ResetMode
+        .build());
+
+registry.registerQuest(Quest.builder(WEEKLY_EVENT)
+        .repeatable(ResetMode.IN_GAME_DAY, 7)        // overrides it for this quest only
+        .build());
+```
+
+A repeatable quest returns from `REWARDED` to `AVAILABLE` (or `LOCKED`, if its prerequisites have
+since regressed) once its cooldown elapses, instead of staying `REWARDED` forever. `ResetMode` has
+two options:
+
+* `WALL_CLOCK` - resets a fixed number of real hours after the quest was last claimed, checked
+  against system time. The check happens the next time `QuestManager` ticks that player, not at the
+  exact moment the cooldown expires - it still resets even if the player was offline for it.
+* `IN_GAME_DAY` - resets after a fixed number of in-game days, measured against the world's age
+  (`ServerLevel#getGameTime() / 24000`) rather than the vanilla day/night clock, so it never jumps
+  forward when players sleep. Only advances while the server is actually running.
+
+`repeatable(int amount)` defers to the server's configured default mode (see
+[Development mode](#development-mode)); `repeatable(ResetMode, int)` overrides it per quest. Either
+way, `amount` means hours under `WALL_CLOCK` and in-game days under `IN_GAME_DAY`.
 
 ## Custom objectives
 
@@ -298,6 +375,11 @@ To ship your own GUI instead, just don't call this - build your own screen again
 and the `Serverbound*Payload`s in `com.ryankshah.questapi.impl.network.payload` (or your own network
 abstraction) and ignore `client.gui` entirely. Nothing else in the API depends on the default GUI.
 
+The default GUI shows each objective's progress as a bar, not just a number, plays a sound and pops
+a toast the moment a quest completes, and asks for confirmation before abandoning an active quest.
+The sound/toast is driven by its own `ClientboundQuestCompletedPayload`, separate from the progress
+sync, and fires regardless of which screen (if any) is open at the time.
+
 ## Server/client responsibilities
 
 * **Server**: owns `QuestManager`, `QuestSavedData`, and every state transition. All objective
@@ -341,6 +423,7 @@ QuestAPI writes `config/questapi.properties` on first run:
 
 ```properties
 dev=false
+repeatable-quest-default-reset-mode=WALL_CLOCK
 ```
 
 Set `dev=true` and restart to:
@@ -350,6 +433,10 @@ Set `dev=true` and restart to:
 
 Production quest content registered by other mods is completely unaffected by this flag either way -
 it's purely a switch for this module's own example/debug content.
+
+`repeatable-quest-default-reset-mode` (`WALL_CLOCK` or `IN_GAME_DAY`) is the default a
+[repeatable quest](#repeatable-quests) resolves to when it doesn't set its own via
+`Quest.Builder#repeatable(ResetMode, int)`.
 
 ## Example quests
 
@@ -362,10 +449,17 @@ Registered only when `dev=true`, under `com.ryankshah.questapi.example.ExampleQu
 * **Combat**: *Monster Hunter* (kill 5 zombies) and *Creeper? Aww Man* (kill 1 creeper), both
   auto-starting kill-entity objectives.
 * **Exploration**: *Into the Nether* (visit-dimension objective).
+* **Farm & Sea**: *Gone Fishing* (fish objective, repeatable on the server's default schedule) and
+  *Animal Husbandry* (breed-animals objective, repeatable every in-game day - a per-quest
+  `ResetMode` override).
+* **World Events**: *Thunderstruck* (only available during a thunderstorm - `WeatherCondition` and
+  `EffectReward`) and *Night Owl* (available at night or in a dark forest - `AnyOfCondition`'s OR
+  logic and `AdvancementReward`).
 * **JSON Demo**: *A Quest From JSON* - identical in every respect to the quests above, but defined
   entirely in [a datapack JSON file](#datapack-quests) instead of Java code.
 
 Between them the tree exercises every built-in objective type except delivery, every built-in reward
-type, a three-quest prerequisite chain, a locked quest, a multi-objective quest, and a quest with
-multiple rewards - use `/quests progress` and `/quests unlock` to jump around the tree and see every
-GUI state (locked, available, active, completed, rewarded) without playing through it.
+and condition type, both repeatable `ResetMode`s, a three-quest prerequisite chain, a locked quest, a
+multi-objective quest, and a quest with multiple rewards - use `/quests progress` and `/quests unlock`
+to jump around the tree and see every GUI state (locked, available, active, completed, rewarded)
+without playing through it.
