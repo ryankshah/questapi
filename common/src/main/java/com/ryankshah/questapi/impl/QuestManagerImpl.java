@@ -7,6 +7,7 @@ import com.ryankshah.questapi.api.quest.Quest;
 import com.ryankshah.questapi.api.quest.QuestContext;
 import com.ryankshah.questapi.api.quest.QuestProgress;
 import com.ryankshah.questapi.api.quest.QuestState;
+import com.ryankshah.questapi.api.quest.ResetMode;
 import com.ryankshah.questapi.api.quest.condition.QuestCondition;
 import com.ryankshah.questapi.api.quest.event.QuestEventListener;
 import com.ryankshah.questapi.api.quest.event.QuestEvents;
@@ -188,6 +189,7 @@ public final class QuestManagerImpl implements QuestManager {
         }
         progress.setState(QuestState.REWARDED);
         progress.setRewardedAt(System.currentTimeMillis());
+        progress.setRewardedAtDay(currentGameDay());
         markDirty();
         for (QuestEventListener listener : QuestEvents.listeners()) {
             listener.onRewardClaimed(player, quest);
@@ -246,7 +248,69 @@ public final class QuestManagerImpl implements QuestManager {
 
     @Override
     public void tickObjectives(ServerPlayer player) {
+        checkRepeatableResets(player);
         applyEvent(player, ObjectiveEventKeys.TICK, 0);
+    }
+
+    /**
+     * The world's age in in-game days (total elapsed ticks / 24000), used as the clock for
+     * {@link ResetMode#IN_GAME_DAY} repeatable quests. Unlike the vanilla day/night cycle clock,
+     * this never jumps forward when players sleep, and only advances while the server is running.
+     */
+    private long currentGameDay() {
+        return server != null ? server.overworld().getGameTime() / 24000L : 0L;
+    }
+
+    private ResetMode resolveResetMode(Quest quest) {
+        return quest.resetMode() != null ? quest.resetMode() : DevConfig.defaultResetMode();
+    }
+
+    private boolean repeatableCooldownElapsed(Quest quest, QuestProgress progress) {
+        if (resolveResetMode(quest) == ResetMode.WALL_CLOCK) {
+            long elapsedMillis = System.currentTimeMillis() - progress.rewardedAt();
+            return elapsedMillis >= quest.resetAmount() * 3_600_000L;
+        }
+        long elapsedDays = currentGameDay() - progress.rewardedAtDay();
+        return elapsedDays >= quest.resetAmount();
+    }
+
+    /**
+     * Moves any {@code REWARDED} repeatable quest whose cooldown has elapsed back to {@code
+     * AVAILABLE} (or {@code LOCKED}, if its prerequisites have since regressed).
+     */
+    private void checkRepeatableResets(ServerPlayer player) {
+        if (server == null) {
+            return;
+        }
+        PlayerQuestData data = dataFor(player);
+        List<Identifier> toReset = new java.util.ArrayList<>();
+        for (Map.Entry<Identifier, QuestProgress> entry : data.progress().entrySet()) {
+            if (entry.getValue().state() != QuestState.REWARDED) {
+                continue;
+            }
+            Quest quest = registry.getQuest(entry.getKey()).orElse(null);
+            if (quest == null || !quest.repeatable()) {
+                continue;
+            }
+            if (repeatableCooldownElapsed(quest, entry.getValue())) {
+                toReset.add(entry.getKey());
+            }
+        }
+        if (toReset.isEmpty()) {
+            return;
+        }
+        for (Identifier questId : toReset) {
+            data.progress().remove(questId);
+        }
+        markDirty();
+        refreshAvailability(player);
+        for (Identifier questId : toReset) {
+            registry.getQuest(questId).ifPresent(quest -> {
+                for (QuestEventListener listener : QuestEvents.listeners()) {
+                    listener.onQuestReset(player, quest);
+                }
+            });
+        }
     }
 
     @Override

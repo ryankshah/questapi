@@ -3,6 +3,7 @@ package com.ryankshah.questapi;
 import com.mojang.blaze3d.platform.InputConstants;
 import com.ryankshah.questapi.client.gui.QuestScreen;
 import com.ryankshah.questapi.client.network.ClientQuestNetworking;
+import com.ryankshah.questapi.impl.network.payload.ClientboundQuestCompletedPayload;
 import com.ryankshah.questapi.impl.network.payload.ClientboundSyncDefinitionsPayload;
 import com.ryankshah.questapi.impl.network.payload.ClientboundSyncProgressPayload;
 import net.fabricmc.api.ClientModInitializer;
@@ -25,6 +26,8 @@ public class QuestApiFabricClient implements ClientModInitializer {
                 (payload, context) -> ClientQuestNetworking.handleSyncDefinitions(payload.categories(), payload.quests()));
         ClientPlayNetworking.registerGlobalReceiver(ClientboundSyncProgressPayload.TYPE,
                 (payload, context) -> ClientQuestNetworking.handleSyncProgress(payload.data()));
+        ClientPlayNetworking.registerGlobalReceiver(ClientboundQuestCompletedPayload.TYPE,
+                (payload, context) -> ClientQuestNetworking.handleQuestCompleted(payload.questTitle()));
 
         ClientTickEvents.END_CLIENT_TICK.register(client -> {
             while (openQuestsKey.consumeClick()) {

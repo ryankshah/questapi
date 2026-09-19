@@ -27,6 +27,9 @@ public final class Quest {
     private final List<QuestCondition> prerequisites;
     private final boolean autoActivate;
     private final int sortOrder;
+    private final boolean repeatable;
+    private final ResetMode resetMode;
+    private final int resetAmount;
 
     private Quest(Builder builder) {
         this.id = builder.id;
@@ -39,6 +42,9 @@ public final class Quest {
         this.prerequisites = List.copyOf(builder.prerequisites);
         this.autoActivate = builder.autoActivate;
         this.sortOrder = builder.sortOrder;
+        this.repeatable = builder.repeatable;
+        this.resetMode = builder.resetMode;
+        this.resetAmount = builder.resetAmount;
     }
 
     public static Builder builder(Identifier id) {
@@ -92,6 +98,31 @@ public final class Quest {
         return sortOrder;
     }
 
+    /**
+     * If {@code true}, this quest automatically returns to {@code AVAILABLE} some time after being
+     * rewarded, instead of staying in the terminal {@code REWARDED} state forever.
+     */
+    public boolean repeatable() {
+        return repeatable;
+    }
+
+    /**
+     * How this quest's cooldown is measured, or {@code null} to use the server's configured default
+     * (see {@code questapi.properties}). Meaningless unless {@link #repeatable()} is {@code true}.
+     */
+    public ResetMode resetMode() {
+        return resetMode;
+    }
+
+    /**
+     * The cooldown length: hours if the resolved {@link ResetMode} is {@link ResetMode#WALL_CLOCK},
+     * in-game days if it is {@link ResetMode#IN_GAME_DAY}. Meaningless unless {@link #repeatable()}
+     * is {@code true}.
+     */
+    public int resetAmount() {
+        return resetAmount;
+    }
+
     public static final class Builder {
         private final Identifier id;
         private Component title = Component.literal("Untitled Quest");
@@ -103,6 +134,9 @@ public final class Quest {
         private final List<QuestCondition> prerequisites = new java.util.ArrayList<>();
         private boolean autoActivate = false;
         private int sortOrder = 0;
+        private boolean repeatable = false;
+        private ResetMode resetMode = null;
+        private int resetAmount = 0;
 
         private Builder(Identifier id) {
             this.id = id;
@@ -165,6 +199,28 @@ public final class Quest {
 
         public Builder sortOrder(int sortOrder) {
             this.sortOrder = sortOrder;
+            return this;
+        }
+
+        /**
+         * Marks this quest repeatable, resetting {@code amount} hours or in-game days (depending on
+         * the server's configured default {@link ResetMode}) after it was last claimed.
+         */
+        public Builder repeatable(int amount) {
+            return repeatable(null, amount);
+        }
+
+        /**
+         * Marks this quest repeatable with an explicit {@link ResetMode}, overriding the server's
+         * configured default for this quest only.
+         */
+        public Builder repeatable(ResetMode mode, int amount) {
+            if (amount <= 0) {
+                throw new IllegalArgumentException("Quest " + id + " repeatable amount must be positive");
+            }
+            this.repeatable = true;
+            this.resetMode = mode;
+            this.resetAmount = amount;
             return this;
         }
 

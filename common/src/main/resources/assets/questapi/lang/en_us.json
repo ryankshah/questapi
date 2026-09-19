@@ -9,6 +9,8 @@
   "questapi.objective.tame_entity": "Tame %1$s animal(s)",
   "questapi.objective.visit_dimension": "Visit %1$s",
   "questapi.objective.visit_location": "Reach %1$s",
+  "questapi.objective.fish": "Catch %1$s fish",
+  "questapi.objective.breed_animals": "Breed %1$s animal(s)",
 
   "questapi.reward.item": "%1$sx %2$s",
   "questapi.reward.experience": "%1$s Experience",
@@ -34,6 +36,12 @@
   "questapi.gui.state.completed": "Completed ★",
   "questapi.gui.state.rewarded": "Complete",
   "questapi.gui.state.abandoned": "Abandoned",
+  "questapi.gui.state.rewarded.repeatable": "Complete (repeats)",
+
+  "questapi.gui.abandon.confirm.title": "Abandon quest?",
+  "questapi.gui.abandon.confirm.message": "Progress on this quest will be lost.",
+
+  "questapi.toast.quest_completed.title": "Quest completed",
 
   "key.questapi.open_quests": "Open Quest Book"
 }

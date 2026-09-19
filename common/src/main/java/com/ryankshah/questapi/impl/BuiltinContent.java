@@ -5,9 +5,11 @@ import com.ryankshah.questapi.api.quest.condition.impl.AdvancementCondition;
 import com.ryankshah.questapi.api.quest.condition.impl.ExperienceLevelCondition;
 import com.ryankshah.questapi.api.quest.condition.impl.ItemPossessionCondition;
 import com.ryankshah.questapi.api.quest.condition.impl.QuestCompletedCondition;
+import com.ryankshah.questapi.api.quest.objective.impl.BreedAnimalsObjective;
 import com.ryankshah.questapi.api.quest.objective.impl.CollectItemObjective;
 import com.ryankshah.questapi.api.quest.objective.impl.ConsumeItemObjective;
 import com.ryankshah.questapi.api.quest.objective.impl.CraftItemObjective;
+import com.ryankshah.questapi.api.quest.objective.impl.FishObjective;
 import com.ryankshah.questapi.api.quest.objective.impl.DeliverItemObjective;
 import com.ryankshah.questapi.api.quest.objective.impl.KillEntityObjective;
 import com.ryankshah.questapi.api.quest.objective.impl.MineBlockObjective;
@@ -39,6 +41,8 @@ public final class BuiltinContent {
         registry.registerObjectiveType(TameEntityObjective.TYPE);
         registry.registerObjectiveType(VisitDimensionObjective.TYPE);
         registry.registerObjectiveType(VisitLocationObjective.TYPE);
+        registry.registerObjectiveType(FishObjective.TYPE);
+        registry.registerObjectiveType(BreedAnimalsObjective.TYPE);
 
         registry.registerRewardType(ItemReward.TYPE);
         registry.registerRewardType(ExperienceReward.TYPE);

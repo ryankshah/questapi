@@ -53,6 +53,6 @@ public final class QuestListEntry extends ObjectSelectionList.Entry<QuestListEnt
         int titleColor = locked ? 0xFF808080 : 0xFFFFFFFF;
         var font = net.minecraft.client.Minecraft.getInstance().font;
         graphics.text(font, quest.title(), textX, y + 3, titleColor);
-        graphics.text(font, QuestGuiText.stateLabel(state), textX, y + 3 + 11, QuestGuiText.stateColor(state));
+        graphics.text(font, QuestGuiText.stateLabel(quest, state), textX, y + 3 + 11, QuestGuiText.stateColor(state));
     }
 }

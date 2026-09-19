@@ -5,6 +5,7 @@ import com.ryankshah.questapi.example.ExampleQuests;
 import com.ryankshah.questapi.impl.DevConfig;
 import com.ryankshah.questapi.impl.data.QuestDataLoader;
 import com.ryankshah.questapi.impl.network.QuestNetworking;
+import com.ryankshah.questapi.impl.network.payload.ClientboundQuestCompletedPayload;
 import com.ryankshah.questapi.impl.network.payload.ClientboundSyncDefinitionsPayload;
 import com.ryankshah.questapi.impl.network.payload.ClientboundSyncProgressPayload;
 import com.ryankshah.questapi.impl.network.payload.ServerboundAbandonQuestPayload;
@@ -36,6 +37,7 @@ public class QuestApiFabric implements ModInitializer {
 
         PayloadTypeRegistry.clientboundPlay().register(ClientboundSyncDefinitionsPayload.TYPE, ClientboundSyncDefinitionsPayload.STREAM_CODEC);
         PayloadTypeRegistry.clientboundPlay().register(ClientboundSyncProgressPayload.TYPE, ClientboundSyncProgressPayload.STREAM_CODEC);
+        PayloadTypeRegistry.clientboundPlay().register(ClientboundQuestCompletedPayload.TYPE, ClientboundQuestCompletedPayload.STREAM_CODEC);
         PayloadTypeRegistry.serverboundPlay().register(ServerboundRequestSyncPayload.TYPE, ServerboundRequestSyncPayload.STREAM_CODEC);
         PayloadTypeRegistry.serverboundPlay().register(ServerboundStartQuestPayload.TYPE, ServerboundStartQuestPayload.STREAM_CODEC);
         PayloadTypeRegistry.serverboundPlay().register(ServerboundAbandonQuestPayload.TYPE, ServerboundAbandonQuestPayload.STREAM_CODEC);

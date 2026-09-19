@@ -4,9 +4,12 @@ import com.ryankshah.questapi.QuestApi;
 import com.ryankshah.questapi.api.QuestRegistry;
 import com.ryankshah.questapi.api.quest.Quest;
 import com.ryankshah.questapi.api.quest.QuestCategory;
+import com.ryankshah.questapi.api.quest.ResetMode;
 import com.ryankshah.questapi.api.quest.condition.impl.QuestCompletedCondition;
+import com.ryankshah.questapi.api.quest.objective.impl.BreedAnimalsObjective;
 import com.ryankshah.questapi.api.quest.objective.impl.CollectItemObjective;
 import com.ryankshah.questapi.api.quest.objective.impl.CraftItemObjective;
+import com.ryankshah.questapi.api.quest.objective.impl.FishObjective;
 import com.ryankshah.questapi.api.quest.objective.impl.KillEntityObjective;
 import com.ryankshah.questapi.api.quest.objective.impl.VisitDimensionObjective;
 import com.ryankshah.questapi.api.quest.reward.impl.ExperienceReward;
@@ -36,6 +39,7 @@ public final class ExampleQuests {
     public static final Identifier CATEGORY_DIAMONDS = id("diamonds");
     public static final Identifier CATEGORY_COMBAT = id("combat");
     public static final Identifier CATEGORY_EXPLORATION = id("exploration");
+    public static final Identifier CATEGORY_FARM_AND_SEA = id("farm_and_sea");
 
     private ExampleQuests() {
     }
@@ -69,6 +73,8 @@ public final class ExampleQuests {
                 Component.literal("Combat"), new ItemStack(Items.IRON_SWORD)).withSortOrder(2));
         registry.registerCategory(QuestCategory.of(CATEGORY_EXPLORATION,
                 Component.literal("Exploration"), new ItemStack(Items.COMPASS)).withSortOrder(3));
+        registry.registerCategory(QuestCategory.of(CATEGORY_FARM_AND_SEA,
+                Component.literal("Farm & Sea"), new ItemStack(Items.FISHING_ROD)).withSortOrder(4));
 
         Identifier gettingWood = id("getting_wood");
         Identifier stoneAge = id("stone_age");
@@ -78,6 +84,8 @@ public final class ExampleQuests {
         Identifier monsterHunter = id("monster_hunter");
         Identifier creeperAwwMan = id("creeper_aww_man");
         Identifier intoTheNether = id("into_the_nether");
+        Identifier goneFishing = id("gone_fishing");
+        Identifier animalHusbandry = id("animal_husbandry");
 
         // Getting Wood: the entry point of the tree, starts automatically for every player.
         registry.registerQuest(Quest.builder(gettingWood)
@@ -179,6 +187,33 @@ public final class ExampleQuests {
                 .reward(new ExperienceReward(60))
                 .autoActivate(true)
                 .sortOrder(0)
+                .build());
+
+        // Gone Fishing: repeatable, deferring to the server's configured default ResetMode.
+        registry.registerQuest(Quest.builder(goneFishing)
+                .title(Component.literal("Gone Fishing"))
+                .description(Component.literal("Reel in 3 fish. Resets on the server's default schedule."))
+                .icon(new ItemStack(Items.FISHING_ROD))
+                .category(CATEGORY_FARM_AND_SEA)
+                .objective(new FishObjective(3))
+                .reward(new ExperienceReward(20))
+                .autoActivate(true)
+                .sortOrder(0)
+                .repeatable(24)
+                .build());
+
+        // Animal Husbandry: repeatable with an explicit per-quest ResetMode override.
+        registry.registerQuest(Quest.builder(animalHusbandry)
+                .title(Component.literal("Animal Husbandry"))
+                .description(Component.literal("Breed 2 animals. Resets after 1 in-game day."))
+                .icon(new ItemStack(Items.WHEAT))
+                .category(CATEGORY_FARM_AND_SEA)
+                .objective(new BreedAnimalsObjective(2))
+                .reward(new ItemReward(new ItemStack(Items.WHEAT, 16)))
+                .reward(new ExperienceReward(15))
+                .autoActivate(true)
+                .sortOrder(1)
+                .repeatable(ResetMode.IN_GAME_DAY, 1)
                 .build());
     }
 }
