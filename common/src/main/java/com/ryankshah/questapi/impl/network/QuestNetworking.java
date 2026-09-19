@@ -1,0 +1,70 @@
+package com.ryankshah.questapi.impl.network;
+
+import com.ryankshah.questapi.QuestApi;
+import com.ryankshah.questapi.impl.network.payload.ClientboundSyncDefinitionsPayload;
+import com.ryankshah.questapi.impl.network.payload.ClientboundSyncProgressPayload;
+import com.ryankshah.questapi.platform.Services;
+import net.minecraft.resources.Identifier;
+import net.minecraft.server.level.ServerPlayer;
+
+import java.util.List;
+
+/**
+ * Server-side packet handling logic shared by both loaders. Each loader module registers these
+ * methods as the handler bodies for its own payload registration API.
+ */
+public final class QuestNetworking {
+
+    private QuestNetworking() {
+    }
+
+    public static void sendDefinitions(ServerPlayer player) {
+        Services.NETWORK.sendToPlayer(player, new ClientboundSyncDefinitionsPayload(
+                List.copyOf(QuestApi.registry().categories()),
+                List.copyOf(QuestApi.registry().quests())
+        ));
+    }
+
+    public static void sendProgress(ServerPlayer player) {
+        // Packets are encoded asynchronously on a Netty thread well after this call returns, so a
+        // live reference to the mutable PlayerQuestData would race further server-thread mutations
+        // (e.g. the next tick's objective updates) and throw ConcurrentModificationException mid
+        // -encode. A snapshot copy is cheap and makes that impossible.
+        Services.NETWORK.sendToPlayer(player, new ClientboundSyncProgressPayload(QuestApi.manager().dataFor(player).copy()));
+    }
+
+    public static void onPlayerJoined(ServerPlayer player) {
+        QuestApi.manager().refreshAvailability(player);
+        sendDefinitions(player);
+        sendProgress(player);
+    }
+
+    public static void handleRequestSync(ServerPlayer player) {
+        sendDefinitions(player);
+        sendProgress(player);
+    }
+
+    public static void handleStartQuest(ServerPlayer player, Identifier questId) {
+        if (QuestApi.manager().startQuest(player, questId)) {
+            sendProgress(player);
+        }
+    }
+
+    public static void handleAbandonQuest(ServerPlayer player, Identifier questId) {
+        if (QuestApi.manager().abandonQuest(player, questId)) {
+            sendProgress(player);
+        }
+    }
+
+    public static void handleClaimReward(ServerPlayer player, Identifier questId) {
+        if (QuestApi.manager().claimRewards(player, questId)) {
+            sendProgress(player);
+        }
+    }
+
+    public static void handleDeliverItems(ServerPlayer player, Identifier questId, int objectiveIndex, int amount) {
+        if (QuestApi.manager().deliverItems(player, questId, objectiveIndex, amount)) {
+            sendProgress(player);
+        }
+    }
+}

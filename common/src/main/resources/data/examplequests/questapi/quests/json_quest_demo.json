@@ -1,0 +1,30 @@
+{
+  "id": "examplequests:json_quest_demo",
+  "title": {
+    "text": "A Quest From JSON"
+  },
+  "description": {
+    "text": "This quest is defined entirely in a datapack JSON file, not Java code - proof the API supports both."
+  },
+  "icon": {
+    "id": "minecraft:paper",
+    "count": 1
+  },
+  "category": "examplequests:json_demo",
+  "objectives": [
+    {
+      "type": "questapi:collect_item",
+      "item": "minecraft:paper",
+      "amount": 5
+    }
+  ],
+  "rewards": [
+    {
+      "type": "questapi:experience",
+      "points": 15
+    }
+  ],
+  "prerequisites": [],
+  "auto_activate": true,
+  "sort_order": 0
+}

@@ -1,0 +1,39 @@
+{
+  "questapi.objective.collect_item": "Obtain %1$s %2$s",
+  "questapi.objective.consume_item": "Consume %1$s %2$s",
+  "questapi.objective.deliver_item": "Deliver %1$s %2$s",
+  "questapi.objective.mine_block": "Mine %1$s %2$s",
+  "questapi.objective.place_block": "Place %1$s %2$s",
+  "questapi.objective.craft_item": "Craft %1$s %2$s",
+  "questapi.objective.kill_entity": "Kill %1$s %2$s",
+  "questapi.objective.tame_entity": "Tame %1$s animal(s)",
+  "questapi.objective.visit_dimension": "Visit %1$s",
+  "questapi.objective.visit_location": "Reach %1$s",
+
+  "questapi.reward.item": "%1$sx %2$s",
+  "questapi.reward.experience": "%1$s Experience",
+  "questapi.reward.command": "Special reward",
+
+  "questapi.condition.quest_completed": "Requires quest: %1$s",
+  "questapi.condition.advancement": "Requires advancement: %1$s",
+  "questapi.condition.item_possession": "Requires: %1$s %2$s",
+  "questapi.condition.experience_level": "Requires level %1$s",
+
+  "questapi.gui.title": "Quests",
+  "questapi.gui.objectives": "Objectives",
+  "questapi.gui.rewards": "Rewards",
+  "questapi.gui.prerequisites": "Locked - Prerequisites:",
+  "questapi.gui.action.start": "Start Quest",
+  "questapi.gui.action.abandon": "Abandon Quest",
+  "questapi.gui.action.claim": "Claim Rewards",
+  "questapi.gui.action.deliver": "Deliver",
+  "questapi.gui.action.deliver.tooltip": "Deliver items (%1$s remaining)",
+  "questapi.gui.state.locked": "Locked",
+  "questapi.gui.state.available": "Available",
+  "questapi.gui.state.active": "In Progress",
+  "questapi.gui.state.completed": "Completed ★",
+  "questapi.gui.state.rewarded": "Complete",
+  "questapi.gui.state.abandoned": "Abandoned",
+
+  "key.questapi.open_quests": "Open Quest Book"
+}

@@ -1,0 +1,11 @@
+{
+  "id": "examplequests:json_demo",
+  "display_name": {
+    "text": "JSON Demo"
+  },
+  "icon": {
+    "id": "minecraft:paper",
+    "count": 1
+  },
+  "sort_order": 4
+}
